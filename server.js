@@ -50,7 +50,6 @@ io.on('connection', function(socket) {
     board.on("ready", function() {
         const servo = five.Servo(2);
 
-
         // load cell
         this.i2cConfig();
         this.i2cWriteReg(0x2A, 0x12, 0xA, function(bytes) {
@@ -63,13 +62,13 @@ io.on('connection', function(socket) {
                 reading -= 0xFFFFFF;
             }
             // CALIBRATE READING HERE
-            socket.emit('drag', reading);
+			socket.emit('drag', reading);
         });
         
         // pressure sensor
         var pressure = five.Sensor("A0");
         pressure.on("change", function(value) {
-            socket.emit('static_pressure', value);
+			socket.emit('static_pressure', value);
         });
         
 
@@ -83,8 +82,8 @@ io.on('connection', function(socket) {
             }
             attack_angle = value;
             const SERVO_CENTER = 90;
-            // The servo has values from 0 to 180
-            servo.to((attack_angle + 25) * (SERVO_CENTER / 25));
+            // The servo has values from 40 to 140
+            servo.to((attack_angle * (50/25) + 90));
             console.log(`Attack Angle set to ${value}`);
         });
         
