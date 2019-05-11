@@ -1,0 +1,55 @@
+@font-face {
+  font-family: 'digital-7';
+  src: url('/digital-7.ttf');
+}
+
+body {
+   min-width: 600px;
+   width: auto !important;
+}
+
+.menu {
+    background-color: #0055b8;
+}
+
+.menu .menu-logo {
+    color: white;
+}
+
+.menu .menu-button {
+    height: 2em;
+    padding: .2em .5em;
+    margin: .5em .25em 0 .25em;
+    border-top-right-radius: .4em;
+    border-top-left-radius: .4em;
+    display: inline-block;
+    background-color: lightgray;
+}
+
+.menu .menu-button a {
+    color: black;
+}
+
+.menu .menu-button.active {
+    background-color: white;
+}
+
+.record {
+    color: firebrick;
+}
+
+.readout-box {
+    background-color: #0055b8;
+    border-radius: .4em;
+}
+
+.readout {
+  font-family: 'digital-7', sans-serif;
+  font-size: 350%;
+  color: white;
+}
+
+.readout-units {
+    font-family: 'digital-7', sans-serif;
+    color: white;
+}

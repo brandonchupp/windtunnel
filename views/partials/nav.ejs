@@ -1,0 +1,22 @@
+
+<div class='container-fluid menu'>
+    <div class='row m-0 align-items-center'>
+        <div class='col-5'>
+            <span class='menu-button<%if (page == 'control') { %> active<% } %>'>
+                <a class='menu-link' href='/'>Control Panel</a>
+            </span>
+            <div class='menu-button<%if (page == 'results') { %> active<% } %>'>
+                <a class='menu-link' href='/results/'>Results</a>
+            </div>
+        </div>
+        <div class='col-2 text-center'>
+            <div class='menu-logo'>
+                <img src='/images/emu.png' width='30' height='30' alt=''>
+                <span class='mx-2 text-nowrap'>Wind Tunnel Project</span>
+            </div>
+        </div>
+        <div class='col-5 text-right'>
+            <button id='record' class='btn btn-light'><i class='fa fa<%if (recording) { %>-stop<% } %>-circle record'></i> Record<%if (recording) { %>ing...<% } %></button>
+        </div>
+    </div>
+</div>
