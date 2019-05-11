@@ -1,6 +1,3 @@
-//var five = require("johnny-five");
-//var board = new five.Board();
-
 const port = 3000
 
 const express = require('express');
@@ -8,6 +5,8 @@ const app = express();
 const server = require('http').createServer(app);
 const io = require('socket.io')(server);
 const ejs = require('ejs');
+var five = require("johnny-five");
+var board = new five.Board();
 
 var recording = false;
 var fan_speed = 0;
@@ -21,7 +20,6 @@ const FAN_SPEED_MAX = 100;
 function isNumber(n) {
     return !isNaN(parseFloat(n)) && isFinite(n);
 }
-
 
 app.use(express.static(__dirname + '/static'));
 app.set('view engine', 'ejs');
@@ -49,9 +47,47 @@ app.get('/results/', function(req, res) {
 });
 
 io.on('connection', function(socket) {
-    console.log('a user connected');
-    socket.on('chat message', function(msg){
-        console.log('message: ' + msg);
+    board.on("ready", function() {
+        const servo = five.Servo(2);
+
+
+        // load cell
+        this.i2cConfig();
+        this.i2cWriteReg(0x2A, 0x12, 0xA, function(bytes) {
+        });
+        this.i2cRead(0x2A, 0x12, 0x8, function(bytes) {
+            const buf = Buffer.from(bytes);
+            var reading = buf.readUIntBE(0,3);
+            // handling overflow from negative
+            if (reading >= 0x800000){
+                reading -= 0xFFFFFF;
+            }
+            // CALIBRATE READING HERE
+            socket.emit('drag', reading);
+        });
+        
+        // pressure sensor
+        var pressure = five.Sensor("A0");
+        pressure.on("change", function(value) {
+            socket.emit('static_pressure', value);
+        });
+        
+
+        socket.on('attack_angle', (value) => {
+            if (!isNumber(value)) {
+                value = ATTACK_ANGLE_MIN;
+            } else if (parseFloat(value) > ATTACK_ANGLE_MAX) {
+                value = ATTACK_ANGLE_MAX;
+            } else if (parseFloat(value) < ATTACK_ANGLE_MIN) {
+                value = ATTACK_ANGLE_MIN;
+            }
+            attack_angle = value;
+            const SERVO_CENTER = 90;
+            // The servo has values from 0 to 180
+            servo.to((attack_angle + 25) * (SERVO_CENTER / 25));
+            console.log(`Attack Angle set to ${value}`);
+        });
+        
     });
 
     socket.on('toggle_record', () => {
@@ -70,45 +106,9 @@ io.on('connection', function(socket) {
         console.log(`Fan Speed set to ${value}`);
         socket.emit('total_pressure', 10.20, 11)
     });
-
-    socket.on('attack_angle', (value) => {
-        if (!isNumber(value)) {
-            value = ATTACK_ANGLE_MIN;
-        } else if (parseFloat(value) > ATTACK_ANGLE_MAX) {
-            value = ATTACK_ANGLE_MAX;
-        } else if (parseFloat(value) < ATTACK_ANGLE_MIN) {
-            value = ATTACK_ANGLE_MIN;
-        }
-        attack_angle = value;
-        console.log(`Attack Angle set to ${value}`);
-    });
 });
 
 server.listen(port, () => {
     console.log('Server started...')
     console.log(`Wind Tunnel GUI is accessible from your browser at localhost:${port}`);
 });
-
-
-// board.on("ready", function() {
-//     var sensor = new five.Sensor("A0");
-
-//     // When the sensor value changes, log the value
-//     // sensor.on("change", function(value) {
-//     //     console.log(value);
-//     // });
-
-//     // dynamic_pressure - real
-
-//     // static_pressure - real
-
-//     // lift - real
-
-//     // drag - real
-
-//     // attack_angle - real
-
-//     // fan_speed
-
-
-// });
