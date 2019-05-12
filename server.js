@@ -47,6 +47,13 @@ app.get('/results/', function(req, res) {
 });
 
 io.on('connection', function(socket) {
+    // Initialize readings to zero
+    socket.emit('drag', 0);
+    socket.emit('lift', 0);
+    socket.emit('velocity', 0);
+    socket.emit('static_pressure', 0);
+    socket.emit('dynamic_pressure', 0);
+
     board.on("ready", function() {
         const servo = five.Servo(2);
 
