@@ -103,7 +103,6 @@ io.on('connection', function(socket) {
         }
         fan_speed = value;
         console.log(`Fan Speed set to ${value}`);
-        socket.emit('total_pressure', 10.20, 11)
     });
 });
 

@@ -27,13 +27,26 @@ function build_pressure_breakdown(static, dynamic) {
 
 $(document).ready(() => {
     var socket = io();
+    var dynamic = 0;
+    var static = 0;
 
     $('#total_pressure').tooltip({
         html: true,
         title: build_pressure_breakdown(0, 0)
     });
 
-    socket.on('total_pressure', function(static, dynamic){
+    socket.on('dynamic_pressure', function(new_dynamic){
+        dynamic = new_dynamic;
+        $('#total_pressure').tooltip('dispose');
+        $('#total_pressure').tooltip({
+            html: true,
+            title: build_pressure_breakdown(static, dynamic)
+        });
+        $('#total_pressure').html(static + dynamic);
+    });
+
+    socket.on('static_pressure', function(new_static){
+        static = new_static;
         $('#total_pressure').tooltip('dispose');
         $('#total_pressure').tooltip({
             html: true,
@@ -66,7 +79,8 @@ $(document).ready(() => {
             socket.emit('fan_speed', value)
         }
     });
-	init_knob('attack_angle', {
+
+    init_knob('attack_angle', {
         min: ATTACK_ANGLE_MIN,
         max: ATTACK_ANGLE_MAX,
         step: 1,
