@@ -77,7 +77,6 @@ io.on('connection', function(socket) {
         pressure.on("change", function(value) {
 			socket.emit('static_pressure', value);
         });
-        
 
         socket.on('attack_angle', (value) => {
             if (!isNumber(value)) {
@@ -90,14 +89,23 @@ io.on('connection', function(socket) {
             attack_angle = value;
             const SERVO_CENTER = 90;
             // The servo has values from 40 to 140
-            servo.to((attack_angle * (50/25) + 90));
+            servo.to((attack_angle * (50/25) + SERVO_CENTER));
             console.log(`Attack Angle set to ${value}`);
         });
-        
     });
 
     socket.on('toggle_record', () => {
         recording = !recording;
+    });
+
+    socket.on('drag_tare', () => {
+        // Tare the drag to make it zero
+        console.log('Taring drag');
+    });
+
+    socket.on('lift_tare', () => {
+        // Tare the lift to make it zero
+        console.log('Taring lift');
     });
 
     socket.on('fan_speed', (value) => {

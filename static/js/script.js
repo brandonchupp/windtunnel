@@ -59,11 +59,17 @@ $(document).ready(() => {
     init_readout(socket, 'lift');
     init_readout(socket, 'velocity');
 
-    
-
     $('#record').on('click', () => {
         socket.emit('toggle_record');
         location.reload();
+    });
+
+    $('#drag_tare').on('click', () => {
+        socket.emit('drag_tare');
+    });
+
+    $('#lift_tare').on('click', () => {
+        socket.emit('lift_tare');
     });
 
     init_knob('fan_speed', {
