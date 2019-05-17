@@ -8,6 +8,12 @@ const ejs = require('ejs');
 var five = require("johnny-five");
 var board = new five.Board();
 
+const STATIC_FILES = [
+    ['/js/bootstrap', '/node_modules/bootstrap/dist/js'],
+    ['/js/jquery', '/node_modules/jquery/dist'],
+    ['/css/bootstrap', '/node_modules/bootstrap/dist/css']
+]
+
 var recording = false;
 var fan_speed = 0;
 var attack_angle = 0;
@@ -22,6 +28,11 @@ function isNumber(n) {
 }
 
 app.use(express.static(__dirname + '/static'));
+
+STATIC_FILES.forEach((value) => {
+    app.use(value[0], express.static(__dirname + value[1]));
+});
+
 app.set('view engine', 'ejs');
 
 app.get('/', function(req, res) {
