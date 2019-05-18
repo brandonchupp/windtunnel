@@ -9,6 +9,9 @@ Interfaces with the Eastern Mennonite University wind tunnel to provide control 
 
 ```
 node.js
+
+## If on Windows:
+npm install --global windows-build-tools
 ```
 
 ### Installing
