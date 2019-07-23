@@ -74,7 +74,7 @@ io.on('connection', function(socket) {
     socket.emit('dynamic_pressure', 0);
 
     if (DEV_MODE) {
-        setInterval(function(){   
+        setInterval(function(){
             socket.emit('lift', Math.random());
             socket.emit('drag', Math.random());
             socket.emit('velocity', Math.random());
@@ -91,10 +91,14 @@ io.on('connection', function(socket) {
         });
         this.i2cRead(0x2A, 0x12, 0x8, function(bytes) {
             const buf = Buffer.from(bytes);
-            var reading = buf.readUIntBE(0,3);
+            var drag = buf.readUIntBE(0,3);
+            var lift = buf.readUIntBE(0,6);
             // handling overflow from negative
-            if (reading >= 0x800000){
-                reading -= 0xFFFFFF;
+            if (drag >= 0x800000){
+                drag -= 0xFFFFFF;
+            }
+            if (lift >= 0x800000){
+                lift -= 0xFFFFFF;
             }
             // CALIBRATE READING HERE
 			socket.emit('drag', reading);
@@ -106,11 +110,9 @@ io.on('connection', function(socket) {
         // pressure sensor
         var pressure = five.Sensor("A0");
         pressure.on("change", function(value) {
-			socket.emit('static_pressure', value);
-
-            if (recording) {
-                recorded_data['static_pressure'].push(value);
-            }
+        socket.emit('static_pressure', Math.round((value*15.76/1024 + 1.54)*1000)/1000);
+        //Numbers were chosen because of the given conversion to psi from mV 1024
+        // is the voltage ratio, and the other numbers are in the given formula
         });
 
         socket.on('attack_angle', (value) => {
