@@ -1,4 +1,5 @@
-const port = 3000
+const port = 3000;
+const DEV_MODE = true;
 
 const express = require('express');
 const app = express();
@@ -17,6 +18,13 @@ const STATIC_FILES = [
 var recording = false;
 var fan_speed = 0;
 var attack_angle = 0;
+var recorded_data = {
+    'static_pressure': [],
+    'dynamic_pressure': [],
+    'lift': [],
+    'drag': [],
+    'velocity': []
+}
 const ATTACK_ANGLE_MIN = -25;
 const ATTACK_ANGLE_MAX = 25;
 const FAN_SPEED_MIN = 0;
@@ -65,6 +73,15 @@ io.on('connection', function(socket) {
     socket.emit('static_pressure', 0);
     socket.emit('dynamic_pressure', 0);
 
+    if (DEV_MODE) {
+        setInterval(function(){   
+            socket.emit('lift', Math.random());
+            socket.emit('drag', Math.random());
+            socket.emit('velocity', Math.random());
+            socket.emit('static_pressure', Math.random());
+            socket.emit('dynamic_pressure', Math.random());
+        }, 500);
+    }
     board.on("ready", function() {
         const servo = five.Servo(2);
 
@@ -81,12 +98,19 @@ io.on('connection', function(socket) {
             }
             // CALIBRATE READING HERE
 			socket.emit('drag', reading);
+            if (recording) {
+                recorded_data['drag'].push(value);
+            }
         });
-        
+
         // pressure sensor
         var pressure = five.Sensor("A0");
         pressure.on("change", function(value) {
 			socket.emit('static_pressure', value);
+
+            if (recording) {
+                recorded_data['static_pressure'].push(value);
+            }
         });
 
         socket.on('attack_angle', (value) => {
