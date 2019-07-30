@@ -84,7 +84,6 @@ let initSocket = (servo) => {
                 drag = Math.random() - drag_tare;
                 socket.emit('lift', lift);
                 socket.emit('drag', drag);
-                socket.emit('velocity', Math.random());
                 socket.emit('static_pressure', Math.random());
                 socket.emit('total_pressure', Math.random());
             }, 1000);

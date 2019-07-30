@@ -28,6 +28,13 @@ $(document).ready(() => {
     var static = 0;
     var total = 0;
 
+    $('#velocity_modal').modal('show');
+    $("#velocity_modal").on('hide.bs.modal', () => {
+        var temp = $('#velocity_temp').val();
+        var pressure = $('#velocity_pressure').val(); 
+        // HANDLE VELOCITY HERE
+    });
+
     socket.on('total_pressure', function(new_total){
         total = new_total;
         dynamic = total - static;
