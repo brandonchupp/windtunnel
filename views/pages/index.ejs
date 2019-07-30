@@ -45,9 +45,11 @@
                         <span class='readout-units'>lbs</span>
                     </div>
                     <h5 class='p-2'>Lift</h5>
-                    <button id='lift_tare' class='btn btn-secondary'>
-                        <i class='fa fa-refresh'></i> Tare
-                    </button>
+                    <%if (!recording) { %>
+                        <button id='lift_tare' class='btn btn-secondary'>
+                            <i class='fa fa-refresh'></i> Tare
+                        </button>
+                    <% } %>
                 </div>
                 <div class='col-lg-6 p-3'>
                     <div class='readout-box'>
@@ -55,9 +57,11 @@
                         <span class='readout-units'>lbs</span>
                     </div>
                     <h5 class='p-2'>Drag</h5>
-                    <button id='drag_tare' class='btn btn-secondary'>
-                        <i class='fa fa-refresh'></i> Tare
-                    </button>
+                    <%if (!recording) { %>
+                        <button id='drag_tare' class='btn btn-secondary'>
+                            <i class='fa fa-refresh'></i> Tare
+                        </button>
+                    <% } %>
                 </div>
             </div>
         </div>
