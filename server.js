@@ -1,5 +1,5 @@
 const port = 3000;
-const DEV_MODE = true;
+const DEV_MODE = false;
 
 const express = require('express');
 const app = express();
@@ -65,31 +65,30 @@ app.get('/results/', function(req, res) {
     });
 });
 
-io.on('connection', function(socket) {
-    // Initialize readings to zero
-    socket.emit('drag', 0);
-    socket.emit('lift', 0);
-    socket.emit('velocity', 0);
-    socket.emit('static_pressure', 0);
-    socket.emit('dynamic_pressure', 0);
+board.on("ready", function() {
+    const servo = five.Servo(2);
+    io.on('connection', function(socket) {
+        // Initialize readings to zero
+        socket.emit('drag', 0);
+        socket.emit('lift', 0);
+        socket.emit('velocity', 0);
+        socket.emit('static_pressure', 0);
+        socket.emit('total_pressure', 0);
 
-    if (DEV_MODE) {
-        setInterval(function(){
-            socket.emit('lift', Math.random());
-            socket.emit('drag', Math.random());
-            socket.emit('velocity', Math.random());
-            socket.emit('static_pressure', Math.random());
-            socket.emit('dynamic_pressure', Math.random());
-        }, 500);
-    }
-    board.on("ready", function() {
-        const servo = five.Servo(2);
+        if (DEV_MODE) {
+            setInterval(function(){
+                socket.emit('lift', Math.random());
+                socket.emit('drag', Math.random());
+                socket.emit('velocity', Math.random());
+                socket.emit('static_pressure', Math.random());
+                socket.emit('total_pressure', Math.random());
+            }, 500);
+        }
 
         // load cell
-        this.i2cConfig();
-        this.i2cWriteReg(0x2A, 0x12, 0xA, function(bytes) {
-        });
-        this.i2cRead(0x2A, 0x12, 0x8, function(bytes) {
+        board.i2cConfig();
+        board.i2cWriteReg(0x2A, 0x12, 0xA, function(bytes) {});
+        board.i2cRead(0x2A, 0x12, 0x8, function(bytes) {
             const buf = Buffer.from(bytes);
             var drag = buf.readUIntBE(0,3);
             var lift = buf.readUIntBE(0,6);
@@ -101,18 +100,24 @@ io.on('connection', function(socket) {
                 lift -= 0xFFFFFF;
             }
             // CALIBRATE READING HERE
-			socket.emit('drag', reading);
+			socket.emit('drag', drag);
             if (recording) {
-                recorded_data['drag'].push(value);
+                recorded_data['drag'].push(drag);
             }
         });
 
         // pressure sensor
         var pressure = five.Sensor("A0");
         pressure.on("change", function(value) {
-        socket.emit('static_pressure', Math.round((value*15.76/1024 + 1.54)*1000)/1000);
-        //Numbers were chosen because of the given conversion to psi from mV 1024
-        // is the voltage ratio, and the other numbers are in the given formula
+            socket.emit('static_pressure', Math.round((value*15.76/1024 + 1.54)*1000)/1000);
+            //Numbers were chosen because of the given conversion to psi from mV 1024
+            // is the voltage ratio, and the other numbers are in the given formula
+            console.log(value)
+        });
+
+        var total_pressure = five.Sensor("A1");
+        total_pressure.on("change", function(value) {
+            socket.emit('total_pressure', Math.round((value*15.76/1024 + 1.54)*1000)/1000);
         });
 
         socket.on('attack_angle', (value) => {
@@ -129,32 +134,32 @@ io.on('connection', function(socket) {
             servo.to((attack_angle * (50/25) + SERVO_CENTER));
             console.log(`Attack Angle set to ${value}`);
         });
-    });
 
-    socket.on('toggle_record', () => {
-        recording = !recording;
-    });
+        socket.on('toggle_record', () => {
+            recording = !recording;
+        });
 
-    socket.on('drag_tare', () => {
-        // Tare the drag to make it zero
-        console.log('Taring drag');
-    });
+        socket.on('drag_tare', () => {
+            // Tare the drag to make it zero
+            console.log('Taring drag');
+        });
 
-    socket.on('lift_tare', () => {
-        // Tare the lift to make it zero
-        console.log('Taring lift');
-    });
+        socket.on('lift_tare', () => {
+            // Tare the lift to make it zero
+            console.log('Taring lift');
+        });
 
-    socket.on('fan_speed', (value) => {
-        if (!isNumber(value)) {
-            value = FAN_SPEED_MIN;
-        } else if (parseFloat(value) > FAN_SPEED_MAX) {
-            value = FAN_SPEED_MAX;
-        } else if (parseFloat(value) < FAN_SPEED_MIN) {
-            value = FAN_SPEED_MIN;
-        }
-        fan_speed = value;
-        console.log(`Fan Speed set to ${value}`);
+        socket.on('fan_speed', (value) => {
+            if (!isNumber(value)) {
+                value = FAN_SPEED_MIN;
+            } else if (parseFloat(value) > FAN_SPEED_MAX) {
+                value = FAN_SPEED_MAX;
+            } else if (parseFloat(value) < FAN_SPEED_MIN) {
+                value = FAN_SPEED_MIN;
+            }
+            fan_speed = value;
+            console.log(`Fan Speed set to ${value}`);
+        });
     });
 });
 
