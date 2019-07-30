@@ -29,30 +29,32 @@ $(document).ready(() => {
     var socket = io();
     var dynamic = 0;
     var static = 0;
+    var total = 0;
 
     $('#total_pressure').tooltip({
         html: true,
         title: build_pressure_breakdown(0, 0)
     });
 
-    socket.on('dynamic_pressure', function(new_dynamic){
-        dynamic = new_dynamic;
+    socket.on('total_pressure', function(new_total){
+        total = new_total;
+        dynamic = total - static;
         $('#total_pressure').tooltip('dispose');
         $('#total_pressure').tooltip({
             html: true,
             title: build_pressure_breakdown(static, dynamic)
         });
-        $('#total_pressure').html(static + dynamic);
+        $('#total_pressure').html(total);
     });
 
     socket.on('static_pressure', function(new_static){
         static = new_static;
+        dynamic = total - static;
         $('#total_pressure').tooltip('dispose');
         $('#total_pressure').tooltip({
             html: true,
             title: build_pressure_breakdown(static, dynamic)
         });
-        $('#total_pressure').html(static + dynamic);
     });
 
     init_readout(socket, 'drag');
