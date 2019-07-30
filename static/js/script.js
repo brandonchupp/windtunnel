@@ -21,40 +21,24 @@ function init_readout(socket, id) {
     });
 }
 
-function build_pressure_breakdown(static, dynamic) {
-    return `<div>Static Pressure: ${static} lbs</div><div>Dynamic Pressure: ${dynamic} lbs</div>`;
-}
-
 $(document).ready(() => {
     var socket = io();
     var dynamic = 0;
     var static = 0;
     var total = 0;
 
-    $('#total_pressure').tooltip({
-        html: true,
-        title: build_pressure_breakdown(0, 0)
-    });
-
     socket.on('total_pressure', function(new_total){
         total = new_total;
         dynamic = total - static;
-        $('#total_pressure').tooltip('dispose');
-        $('#total_pressure').tooltip({
-            html: true,
-            title: build_pressure_breakdown(static, dynamic)
-        });
-        $('#total_pressure').html(total);
+        $('#total_pressure').html(total.toFixed(DECIMAL_PLACES));
+        $('#dynamic_pressure').html(dynamic.toFixed(DECIMAL_PLACES));
     });
 
     socket.on('static_pressure', function(new_static){
         static = new_static;
         dynamic = total - static;
-        $('#total_pressure').tooltip('dispose');
-        $('#total_pressure').tooltip({
-            html: true,
-            title: build_pressure_breakdown(static, dynamic)
-        });
+        $('#static_pressure').html(static.toFixed(DECIMAL_PLACES));
+        $('#dynamic_pressure').html(dynamic.toFixed(DECIMAL_PLACES));
     });
 
     init_readout(socket, 'drag');

@@ -9,37 +9,20 @@
         </div>
     </div>
     <div class='row'>
-        <div class='col-6 p-3'>
+        <div class='col-4 p-3'>
             <input id='fan_speed' value='<%= fan_speed %>'></input>
             <h5>Fan Speed</h5>
         </div>
-        <div class='col-6 p-3'>
+        <div class='col-8 p-3'>
             <div class='row'>
-                <div class='col-lg-6 p-3'>
+                <div class='col-lg-4 p-3'>
                     <div class='readout-box'>
                         <span id='velocity' class='readout'></span>
                         <span class='readout-units'>MPH</span>
                     </div>
                     <h5 class='p-2'>Velocity</h5>
                 </div>
-                <div class='col-lg-6 p-3'>
-                    <div class='readout-box'>
-                        <span id='total_pressure' class='readout'></span>
-                        <span class='readout-units'>PSI</span>
-                    </div>
-                    <h5 class='p-2'>Total Pressure</h5>
-                </div>
-            </div>
-        </div>
-    </div>
-    <div class='row'>
-        <div class='col-6 p-3'>
-            <input id='attack_angle' value='<%= attack_angle %>'></input>
-            <h5>Attack Angle</h5>
-        </div>
-        <div class='col-6 p-3'>
-            <div class='row align-items-center'>
-                <div class='col-lg-6 p-3'>
+                <div class='col-lg-4 p-3'>
                     <div class='readout-box'>
                         <span id='lift' class='readout'></span>
                         <span class='readout-units'>lbs</span>
@@ -51,7 +34,7 @@
                         </button>
                     <% } %>
                 </div>
-                <div class='col-lg-6 p-3'>
+                <div class='col-lg-4 p-3'>
                     <div class='readout-box'>
                         <span id='drag' class='readout'></span>
                         <span class='readout-units'>lbs</span>
@@ -62,6 +45,37 @@
                             <i class='fa fa-refresh'></i> Tare
                         </button>
                     <% } %>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class='row'>
+        <div class='col-4 p-3'>
+            <input id='attack_angle' value='<%= attack_angle %>'></input>
+            <h5>Attack Angle</h5>
+        </div>
+        <div class='col-8 p-3'>
+            <div class='row align-items-center'>
+                <div class='col-lg-4 p-3'>
+                    <div class='readout-box'>
+                        <span id='total_pressure' class='readout'></span>
+                        <span class='readout-units'>PSI</span>
+                    </div>
+                    <h5 class='p-2'>Total Pressure</h5>
+                </div>
+                <div class='col-lg-4 p-3'>
+                    <div class='readout-box'>
+                        <span id='static_pressure' class='readout'></span>
+                        <span class='readout-units'>PSI</span>
+                    </div>
+                    <h5 class='p-2'>Static Pressure</h5>
+                </div>
+                <div class='col-lg-4 p-3'>
+                    <div class='readout-box'>
+                        <span id='dynamic_pressure' class='readout'></span>
+                        <span class='readout-units'>PSI</span>
+                    </div>
+                    <h5 class='p-2'>Dynamic Pressure</h5>
                 </div>
             </div>
         </div>
