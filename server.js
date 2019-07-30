@@ -28,6 +28,10 @@ const ATTACK_ANGLE_MIN = -25;
 const ATTACK_ANGLE_MAX = 25;
 const FAN_SPEED_MIN = 0;
 const FAN_SPEED_MAX = 100;
+var lift = 0;
+var drag = 0;
+var drag_tare = 0;
+var lift_tare = 0;
 
 
 function isNumber(n) {
@@ -75,9 +79,11 @@ let initSocket = (servo) => {
         socket.emit('total_pressure', 0);
 
         if (DEV_MODE) {
-            setInterval(function(){
-                socket.emit('lift', Math.random());
-                socket.emit('drag', Math.random());
+            setInterval(function() {
+                lift = Math.random() - lift_tare;
+                drag = Math.random() - drag_tare;
+                socket.emit('lift', lift);
+                socket.emit('drag', drag);
                 socket.emit('velocity', Math.random());
                 socket.emit('static_pressure', Math.random());
                 socket.emit('total_pressure', Math.random());
@@ -91,8 +97,8 @@ let initSocket = (servo) => {
             board.i2cWriteReg(0x2A, 0x12, 0xA, function(bytes) {});
             board.i2cRead(0x2A, 0x12, 0x8, function(bytes) {
                 const buf = Buffer.from(bytes);
-                var drag = buf.readUIntBE(0,3);
-                var lift = buf.readUIntBE(0,6);
+                drag = buf.readUIntBE(0,3);
+                lift = buf.readUIntBE(0,6);
                 // handling overflow from negative
                 if (drag >= 0x800000){
                     drag -= 0xFFFFFF;
@@ -101,9 +107,9 @@ let initSocket = (servo) => {
                     lift -= 0xFFFFFF;
                 }
                 // CALIBRATE READING HERE
-                socket.emit('drag', drag);
+                socket.emit('drag', drag - drag_tare);
                 if (recording) {
-                    recorded_data['drag'].push(drag);
+                    recorded_data['drag'].push(drag - drag_tare);
                 }
 
                 // pressure sensor
@@ -127,12 +133,14 @@ let initSocket = (servo) => {
 
         socket.on('drag_tare', () => {
             // Tare the drag to make it zero
-            console.log('Taring drag');
+            drag_tare = drag - drag_tare;
+            console.log(`Taring drag ${drag_tare}`);
         });
 
         socket.on('lift_tare', () => {
             // Tare the lift to make it zero
-            console.log('Taring lift');
+            lift_tare = lift - lift_tare;
+            console.log(`Taring lift to ${lift_tare}`);
         });
 
         socket.on('attack_angle', (value) => {
