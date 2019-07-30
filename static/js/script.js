@@ -2,6 +2,7 @@ const ATTACK_ANGLE_MIN = -25;
 const ATTACK_ANGLE_MAX = 25;
 const FAN_SPEED_MIN = 0;
 const FAN_SPEED_MAX = 100;
+const DECIMAL_PLACES = 5;
 
 function init_knob(id, options) {
     $('#' + id).knob({
@@ -17,7 +18,7 @@ function init_knob(id, options) {
 
 function init_readout(socket, id) {
     socket.on(id, function(value){
-      $('#' + id).html(value);
+      $('#' + id).html(value.toFixed(DECIMAL_PLACES));
     });
 }
 
