@@ -1,5 +1,5 @@
 const port = 3000;
-const DEV_MODE = false;
+const DEV_MODE = true;
 
 const express = require('express');
 const app = express();
@@ -7,7 +7,6 @@ const server = require('http').createServer(app);
 const io = require('socket.io')(server);
 const ejs = require('ejs');
 var five = require("johnny-five");
-var board = new five.Board();
 
 const STATIC_FILES = [
     ['/js/bootstrap', '/node_modules/bootstrap/dist/js'],
@@ -32,6 +31,7 @@ const FAN_SPEED_MAX = 100;
 
 
 function isNumber(n) {
+    // Validates that a value n is a number
     return !isNaN(parseFloat(n)) && isFinite(n);
 }
 
@@ -65,8 +65,7 @@ app.get('/results/', function(req, res) {
     });
 });
 
-board.on("ready", function() {
-    const servo = five.Servo(2);
+let initSocket = (servo) => {
     io.on('connection', function(socket) {
         // Initialize readings to zero
         socket.emit('drag', 0);
@@ -82,58 +81,45 @@ board.on("ready", function() {
                 socket.emit('velocity', Math.random());
                 socket.emit('static_pressure', Math.random());
                 socket.emit('total_pressure', Math.random());
-            }, 500);
+            }, 1000);
+        } else {
+            // Some functionality requires the board and won't work if
+            // it isn't available.
+
+            // load cell
+            board.i2cConfig();
+            board.i2cWriteReg(0x2A, 0x12, 0xA, function(bytes) {});
+            board.i2cRead(0x2A, 0x12, 0x8, function(bytes) {
+                const buf = Buffer.from(bytes);
+                var drag = buf.readUIntBE(0,3);
+                var lift = buf.readUIntBE(0,6);
+                // handling overflow from negative
+                if (drag >= 0x800000){
+                    drag -= 0xFFFFFF;
+                }
+                if (lift >= 0x800000){
+                    lift -= 0xFFFFFF;
+                }
+                // CALIBRATE READING HERE
+                socket.emit('drag', drag);
+                if (recording) {
+                    recorded_data['drag'].push(drag);
+                }
+
+                // pressure sensor
+                var pressure = five.Sensor("A0");
+                pressure.on("change", function(value) {
+                    socket.emit('static_pressure', Math.round((value*15.76/1024 + 1.54)*1000)/1000);
+                    // Numbers were chosen because of the given conversion to psi from mV 1024
+                    // is the voltage ratio, and the other numbers are in the given formula
+                });
+
+                var total_pressure = five.Sensor("A1");
+                total_pressure.on("change", function(value) {
+                    socket.emit('total_pressure', Math.round((value*15.76/1024 + 1.54)*1000)/1000);
+                });
+            });
         }
-
-        // load cell
-        board.i2cConfig();
-        board.i2cWriteReg(0x2A, 0x12, 0xA, function(bytes) {});
-        board.i2cRead(0x2A, 0x12, 0x8, function(bytes) {
-            const buf = Buffer.from(bytes);
-            var drag = buf.readUIntBE(0,3);
-            var lift = buf.readUIntBE(0,6);
-            // handling overflow from negative
-            if (drag >= 0x800000){
-                drag -= 0xFFFFFF;
-            }
-            if (lift >= 0x800000){
-                lift -= 0xFFFFFF;
-            }
-            // CALIBRATE READING HERE
-			socket.emit('drag', drag);
-            if (recording) {
-                recorded_data['drag'].push(drag);
-            }
-        });
-
-        // pressure sensor
-        var pressure = five.Sensor("A0");
-        pressure.on("change", function(value) {
-            socket.emit('static_pressure', Math.round((value*15.76/1024 + 1.54)*1000)/1000);
-            //Numbers were chosen because of the given conversion to psi from mV 1024
-            // is the voltage ratio, and the other numbers are in the given formula
-            console.log(value)
-        });
-
-        var total_pressure = five.Sensor("A1");
-        total_pressure.on("change", function(value) {
-            socket.emit('total_pressure', Math.round((value*15.76/1024 + 1.54)*1000)/1000);
-        });
-
-        socket.on('attack_angle', (value) => {
-            if (!isNumber(value)) {
-                value = ATTACK_ANGLE_MIN;
-            } else if (parseFloat(value) > ATTACK_ANGLE_MAX) {
-                value = ATTACK_ANGLE_MAX;
-            } else if (parseFloat(value) < ATTACK_ANGLE_MIN) {
-                value = ATTACK_ANGLE_MIN;
-            }
-            attack_angle = value;
-            const SERVO_CENTER = 90;
-            // The servo has values from 40 to 140
-            servo.to((attack_angle * (50/25) + SERVO_CENTER));
-            console.log(`Attack Angle set to ${value}`);
-        });
 
         socket.on('toggle_record', () => {
             recording = !recording;
@@ -149,6 +135,23 @@ board.on("ready", function() {
             console.log('Taring lift');
         });
 
+        socket.on('attack_angle', (value) => {
+            if (!isNumber(value)) {
+                value = ATTACK_ANGLE_MIN;
+            } else if (parseFloat(value) > ATTACK_ANGLE_MAX) {
+                value = ATTACK_ANGLE_MAX;
+            } else if (parseFloat(value) < ATTACK_ANGLE_MIN) {
+                value = ATTACK_ANGLE_MIN;
+            }
+            attack_angle = value;
+            const SERVO_CENTER = 90;
+            // The servo has values from 40 to 140
+            if (!DEV_MODE) {
+                servo.to((attack_angle * (50/25) + SERVO_CENTER));
+            }
+            console.log(`Attack Angle set to ${value}`);
+        });
+
         socket.on('fan_speed', (value) => {
             if (!isNumber(value)) {
                 value = FAN_SPEED_MIN;
@@ -161,7 +164,18 @@ board.on("ready", function() {
             console.log(`Fan Speed set to ${value}`);
         });
     });
-});
+}
+
+
+if (!DEV_MODE) {
+    var board = new five.Board();
+    board.on("ready", function() {
+        const servo = five.Servo(2);
+        initSocket(servo);
+    });
+} else {
+    initSocket();
+}
 
 server.listen(port, () => {
     console.log('Server started...')
