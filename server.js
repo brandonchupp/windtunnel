@@ -17,6 +17,7 @@ const STATIC_FILES = [
 var recording = false;
 var fan_speed = 0;
 var attack_angle = 0;
+var velocity = 0;
 var temp = 0;
 var pressure = 0;
 var recorded_data = {
@@ -78,10 +79,18 @@ let initSocket = (servo) => {
         // Initialize readings to zero
         socket.emit('drag', 0);
         socket.emit('lift', 0);
-        socket.emit('velocity', 0);
+        socket.emit('velocity', velocity);
         socket.emit('static_pressure', 0);
         socket.emit('total_pressure', 0);
 
+
+        function velocity_set() {
+            velocity = temp * fan_speed;
+            socket.emit('velocity', velocity);
+            if (recording) {
+                recorded_data['velocity'].push(velocity);
+            }
+        }
 
         if (prompt_velocity) {
             socket.emit('prompt_velocity');
@@ -91,18 +100,26 @@ let initSocket = (servo) => {
             temp = dict['temp'];
             pressure = dict['pressure'];
             // HANDLE VELOCITY HERE
-            socket.emit('velocity', temp * fan_speed);
+            velocity_set();
         });
 
         if (DEV_MODE) {
             setInterval(function() {
                 lift = Math.random() - lift_tare;
                 drag = Math.random() - drag_tare;
+                var static_pressure = Math.random();
+                var total_pressure = Math.random();
                 socket.emit('lift', lift);
                 socket.emit('drag', drag);
-                socket.emit('static_pressure', Math.random());
-                socket.emit('total_pressure', Math.random());
-                socket.emit('update_record', recorded_data);
+                socket.emit('static_pressure', static_pressure);
+                socket.emit('total_pressure', total_pressure);
+                if (recording) {
+                    recorded_data['drag'].push(drag - drag_tare);
+                    recorded_data['lift'].push(lift - lift_tare);
+                    recorded_data['static_pressure'].push(static_pressure);
+                    recorded_data['dynamic_pressure'].push(total_pressure - static_pressure);
+                    socket.emit('update_record', recorded_data);
+                }
             }, 1000);
         } else {
             // Some functionality requires the board and won't work if
@@ -185,8 +202,8 @@ let initSocket = (servo) => {
                 value = FAN_SPEED_MIN;
             }
             fan_speed = value;
+            velocity_set();
             console.log(`Fan Speed set to ${value}`);
-            socket.emit('velocity', temp * fan_speed);
         });
     });
 }
