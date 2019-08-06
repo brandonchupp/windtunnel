@@ -28,6 +28,7 @@ $(document).ready(() => {
     var dynamic = 0;
     var static = 0;
     var total = 0;
+    var recording_data = {}
 
 
     socket.on('prompt_velocity', () => {
@@ -62,16 +63,38 @@ $(document).ready(() => {
     });
 
     socket.on('update_record', function(data) {
-        $('#lift_results').html(`${data['lift']}`);
-        $('#drag_results').html(`${data['drag']}`);
-        $('#dynamic_pressure_results').html(`${data['dynamic_pressure']}`);
-        $('#static_pressure_results').html(`${data['static_pressure']}`);
-        $('#total_pressure_results').html(`${data['dynamic_pressure'] + data['static_pressure']}`);
-        $('#velocity_results').html(`${data['velocity']}`);
+        recording_data = data;
+        $('#lift_results').html(data['lift'].join(', '));
+        $('#drag_results').html(data['drag'].join(', '));
+        $('#dynamic_pressure_results').html(data['dynamic_pressure'].join(', '));
+        $('#static_pressure_results').html(data['static_pressure'].join(', '));
+        $('#total_pressure_results').html(data['total_pressure'].join(', '));
+        $('#velocity_results').html(data['velocity'].join(', '));
     });
 
     init_readout(socket, 'drag');
     init_readout(socket, 'lift');
+
+    var downloadable_titles = [
+        'lift',
+        'drag',
+        'dynamic_pressure',
+        'static_pressure',
+        'total_pressure',
+        'velocity'
+    ];
+
+    downloadable_titles.forEach((title) => {
+        $('#download_' + title).on('click', () => {
+            csvContent = recording_data[title].join(',');
+            var pom = document.createElement('a');
+            var blob = new Blob([csvContent], {type: 'text/csv;charset=utf-8;'});
+            var url = URL.createObjectURL(blob);
+            pom.href = url;
+            pom.setAttribute('download', title + '.csv');
+            pom.click();
+        });
+    });
 
     $('#record').on('click', () => {
         socket.emit('toggle_record');

@@ -23,6 +23,7 @@ var pressure = 0;
 var recorded_data = {
     'static_pressure': [],
     'dynamic_pressure': [],
+    'total_pressure': [],
     'lift': [],
     'drag': [],
     'velocity': []
@@ -124,6 +125,7 @@ let initSocket = (servo) => {
                     recorded_data['lift'].push(lift - lift_tare);
                     recorded_data['static_pressure'].push(static_pressure);
                     recorded_data['dynamic_pressure'].push(total_pressure - static_pressure);
+                    recorded_data['total_pressure'].push(total_pressure);
                     socket.emit('update_record', recorded_data);
                 }
             }, 1000);
@@ -154,15 +156,28 @@ let initSocket = (servo) => {
                 // pressure sensor
                 var pressure = five.Sensor("A0");
                 pressure.on("change", function(value) {
-                    socket.emit('static_pressure', Math.round((value*15.76/1024 + 1.54)*1000)/1000);
                     // Numbers were chosen because of the given conversion to psi from mV 1024
                     // is the voltage ratio, and the other numbers are in the given formula
+                    var static_pressure = Math.round((value*15.76/1024 + 1.54)*1000)/1000;
+
+                    socket.emit('static_pressure', static_pressure);
+
+                    if (recording) {
+                        recorded_data['static_pressure'].push(static_pressure);
+                        socket.emit('update_record', recorded_data);
+                    }
                 });
 
                 var total_pressure = five.Sensor("A1");
                 total_pressure.on("change", function(value) {
-                    socket.emit('total_pressure', Math.round((value*15.76/1024 + 1.54)*1000)/1000);
+                    total_pressure = Math.round((value*15.76/1024 + 1.54)*1000)/1000;
+                    socket.emit('total_pressure', total_pressure);
+                    if (recording) {
+                        recorded_data['total_pressure'].push(total_pressure);
+                        socket.emit('update_record', recorded_data);
+                    }
                 });
+
             });
         }
 
