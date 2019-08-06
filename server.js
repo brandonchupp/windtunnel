@@ -103,6 +103,12 @@ let initSocket = (servo) => {
             velocity_set();
         });
 
+
+        // Continuously update the results of recording
+        setInterval(function() {
+            socket.emit('update_record', recorded_data);
+        }, 500);
+
         if (DEV_MODE) {
             setInterval(function() {
                 lift = Math.random() - lift_tare;
