@@ -22,17 +22,29 @@ function init_readout(socket, id) {
     });
 }
 
+
 $(document).ready(() => {
     var socket = io();
     var dynamic = 0;
     var static = 0;
     var total = 0;
 
-    $('#velocity_modal').modal('show');
-    $("#velocity_modal").on('hide.bs.modal', () => {
-        var temp = $('#velocity_temp').val();
-        var pressure = $('#velocity_pressure').val(); 
-        // HANDLE VELOCITY HERE
+
+    socket.on('prompt_velocity', () => {
+        $('#velocity_modal').modal('show');
+        $("#velocity_modal").on('hide.bs.modal', () => {
+            var temp = parseFloat($('#velocity_temp').val());
+            var pressure = parseFloat($('#velocity_pressure').val());
+            socket.emit('velocity_set', {
+                'temp': temp,
+                'pressure': pressure
+            });
+        });
+    });
+
+    socket.on('velocity', (value) => {
+        // parseFloat removes trailing zeros
+        $('#velocity').html(parseFloat(value.toFixed(DECIMAL_PLACES)));
     });
 
     socket.on('total_pressure', function(new_total){
@@ -47,6 +59,10 @@ $(document).ready(() => {
         dynamic = total - static;
         $('#static_pressure').html(static.toFixed(DECIMAL_PLACES));
         $('#dynamic_pressure').html(dynamic.toFixed(DECIMAL_PLACES));
+    });
+
+    socket.on('update_record', function(data) {
+        $('#record_data').html(data);
     });
 
     init_readout(socket, 'drag');
@@ -76,7 +92,8 @@ $(document).ready(() => {
              return value;
         },
         'release': (value) => {
-            socket.emit('fan_speed', value)
+            socket.emit('fan_speed', value);
+
         }
     });
 
@@ -90,7 +107,7 @@ $(document).ready(() => {
              return value + '˚';
         },
         'release': (value) => {
-            socket.emit('attack_angle', value)
+            socket.emit('attack_angle', value);
         }
     });
 });
