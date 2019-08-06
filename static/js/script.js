@@ -62,12 +62,16 @@ $(document).ready(() => {
     });
 
     socket.on('update_record', function(data) {
-        $('#record_data').html(data);
+        $('#lift_results').html(`${data['lift']}`);
+        $('#drag_results').html(`${data['drag']}`);
+        $('#dynamic_pressure_results').html(`${data['dynamic_pressure']}`);
+        $('#static_pressure_results').html(`${data['static_pressure']}`);
+        $('#total_pressure_results').html(`${data['dynamic_pressure'] + data['static_pressure']}`);
+        $('#velocity_results').html(`${data['velocity']}`);
     });
 
     init_readout(socket, 'drag');
     init_readout(socket, 'lift');
-    init_readout(socket, 'velocity');
 
     $('#record').on('click', () => {
         socket.emit('toggle_record');
