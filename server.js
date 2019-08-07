@@ -80,6 +80,12 @@ let initSocket = (servo) => {
     var prompt_velocity = true;
 
     io.on('connection', function(socket) {
+        // Initialize readings to zero    
+        socket.emit('drag', 0);           
+        socket.emit('lift', 0);           
+        socket.emit('velocity', 0);       
+        socket.emit('static_pressure', 0);
+        socket.emit('total_pressure', 0); 
 
         function velocity_set() {
             // Formula from:
@@ -95,7 +101,7 @@ let initSocket = (servo) => {
         }
 
         if (prompt_velocity) {
-            socket.broadcast.emit('prompt_velocity');
+            socket.emit('prompt_velocity');
         }
         socket.on('velocity_set', function(dict) {
             prompt_velocity = false;
