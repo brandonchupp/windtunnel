@@ -19,7 +19,7 @@ var fan_speed = 0;
 var attack_angle = 0;
 var velocity = 0;
 var temp = 0;
-var pressure = 0;
+var baro_pressure = 0;
 var recorded_data = {
     'static_pressure': [],
     'dynamic_pressure': [],
@@ -36,6 +36,9 @@ var lift = 0;
 var drag = 0;
 var drag_tare = 0;
 var lift_tare = 0;
+var dynamic_pressure = 0;
+var static_pressure = 0;
+var total_pressure = 0;
 
 
 function isNumber(n) {
@@ -80,13 +83,18 @@ let initSocket = (servo) => {
         // Initialize readings to zero
         socket.emit('drag', 0);
         socket.emit('lift', 0);
-        socket.emit('velocity', velocity);
+        socket.emit('velocity', 0);
         socket.emit('static_pressure', 0);
         socket.emit('total_pressure', 0);
 
 
         function velocity_set() {
-            velocity = temp * fan_speed;
+            // Formula from:
+            // github.com/brandonchupp/windtunnel/issues/2#issuecomment-518896932
+            velocity = 1096.2 * Math.sqrt(
+                (dynamic_pressure * 27.6799)/
+                (1.325 * baro_pressure / (temp + 460))
+            );
             socket.emit('velocity', velocity);
             if (recording) {
                 recorded_data['velocity'].push(velocity);
@@ -99,8 +107,7 @@ let initSocket = (servo) => {
         socket.on('velocity_set', function(dict) {
             prompt_velocity = false;
             temp = dict['temp'];
-            pressure = dict['pressure'];
-            // HANDLE VELOCITY HERE
+            baro_pressure = dict['pressure'];
             velocity_set();
         });
 
@@ -114,12 +121,16 @@ let initSocket = (servo) => {
             setInterval(function() {
                 lift = Math.random() - lift_tare;
                 drag = Math.random() - drag_tare;
-                var static_pressure = Math.random();
-                var total_pressure = Math.random();
+                static_pressure = Math.random();
+                total_pressure = Math.random();
+                dynamic_pressure = total_pressure - static_pressure;
                 socket.emit('lift', lift);
                 socket.emit('drag', drag);
                 socket.emit('static_pressure', static_pressure);
                 socket.emit('total_pressure', total_pressure);
+                if (!prompt_velocity) {
+                    velocity_set();
+                }
                 if (recording) {
                     recorded_data['drag'].push(drag - drag_tare);
                     recorded_data['lift'].push(lift - lift_tare);
@@ -154,11 +165,11 @@ let initSocket = (servo) => {
                 }
 
                 // pressure sensor
-                var pressure = five.Sensor("A0");
-                pressure.on("change", function(value) {
+                var static_pressure_sensor = five.Sensor("A0");
+                static_pressure_sensor.on("change", function(value) {
                     // Numbers were chosen because of the given conversion to psi from mV 1024
                     // is the voltage ratio, and the other numbers are in the given formula
-                    var static_pressure = Math.round((value*15.76/1024 + 1.54)*1000)/1000;
+                    static_pressure = Math.round((value*15.76/1024 + 1.54)*1000)/1000;
 
                     socket.emit('static_pressure', static_pressure);
 
@@ -168,9 +179,11 @@ let initSocket = (servo) => {
                     }
                 });
 
-                var total_pressure = five.Sensor("A1");
-                total_pressure.on("change", function(value) {
+                var total_pressure_sensor = five.Sensor("A1");
+                total_pressure_sensor.on("change", function(value) {
                     total_pressure = Math.round((value*15.76/1024 + 1.54)*1000)/1000;
+                    dynamic_pressure = total_pressure - static_pressure;
+
                     socket.emit('total_pressure', total_pressure);
                     if (recording) {
                         recorded_data['total_pressure'].push(total_pressure);

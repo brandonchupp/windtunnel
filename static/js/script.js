@@ -45,7 +45,9 @@ $(document).ready(() => {
 
     socket.on('velocity', (value) => {
         // parseFloat removes trailing zeros
-        $('#velocity').html(parseFloat(value.toFixed(DECIMAL_PLACES)));
+        if (DECIMAL_PLACES) {
+            $('#velocity').html(parseFloat(value.toFixed(DECIMAL_PLACES)));
+        }
     });
 
     socket.on('total_pressure', function(new_total){
