@@ -12,7 +12,7 @@ const STATIC_FILES = [
     ['/js/bootstrap', '/node_modules/bootstrap/dist/js'],
     ['/js/jquery', '/node_modules/jquery/dist'],
     ['/css/bootstrap', '/node_modules/bootstrap/dist/css']
-]
+];
 
 var recording = false;
 var fan_speed = 0;
