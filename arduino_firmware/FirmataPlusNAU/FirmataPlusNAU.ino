@@ -26,6 +26,8 @@
 #include <Servo.h>
 #include <Wire.h>
 #include <Firmata.h>
+#include "ClosedCube_TCA9548A.h" // Click here to get the library: http://librarymanager/All#ClosedCube_TCA9548A
+#include "SparkFun_Qwiic_Scale_NAU7802_Arduino_Library.h" // Click here to get the library: http://librarymanager/All#SparkFun_NAU8702
 
 #define I2C_WRITE                   B00000000
 #define I2C_READ                    B00001000
@@ -91,6 +93,11 @@ byte servoCount = 0;
 
 boolean isResetting = false;
 
+NAU7802 myScale; //Create instance of the NAU7802 class
+ClosedCube::Wired::TCA9548A tca9548a;
+#define TCA9548A_I2C_ADDRESS  0x70
+
+
 // Forward declare a few functions to avoid compiler errors with older versions
 // of the Arduino IDE.
 void setPinModeCallback(byte, int);
@@ -98,30 +105,31 @@ void reportAnalogCallback(byte analogPin, int value);
 void sysexCallback(byte, byte, byte*);
 
 /* utility functions */
-void wireWrite(byte data)
-{
-#if ARDUINO >= 100
+void wireWrite(byte data){
   Wire.write((byte)data);
-#else
-  Wire.send(data);
-#endif
 }
 
-byte wireRead(void)
-{
-#if ARDUINO >= 100
-  return Wire.read();
-#else
-  return Wire.receive();
-#endif
+void wireRead(byte byteArray [10]){
+  tca9548a.selectChannel(2);
+  long int longInt = myScale.getReading();
+  byteArray[2] = (int)((longInt >> 24) & 0xFF) ;
+  byteArray[3] = (int)((longInt >> 16) & 0xFF) ;
+  byteArray[4] = (int)((longInt >> 8) & 0XFF);
+  byteArray[5] = (int)((longInt & 0XFF));
+  tca9548a.selectChannel(3);
+  longInt = myScale.getReading();
+  byteArray[6] = (int)((longInt >> 24) & 0xFF) ;
+  byteArray[7] = (int)((longInt >> 16) & 0xFF) ;
+  byteArray[8] = (int)((longInt >> 8) & 0XFF);
+  byteArray[9] = (int)((longInt & 0XFF));
+  return byteArray;
 }
 
 /*==============================================================================
  * FUNCTIONS
  *============================================================================*/
 
-void attachServo(byte pin, int minPulse, int maxPulse)
-{
+void attachServo(byte pin, int minPulse, int maxPulse){
   if (servoCount < MAX_SERVOS) {
     // reuse indexes of detached servos until all have been reallocated
     if (detachedServoCount > 0) {
@@ -141,8 +149,7 @@ void attachServo(byte pin, int minPulse, int maxPulse)
   }
 }
 
-void detachServo(byte pin)
-{
+void detachServo(byte pin){
   servos[servoPinMap[pin]].detach();
   // if we're detaching the last servo, decrement the count
   // otherwise store the index of the detached servo
@@ -158,8 +165,7 @@ void detachServo(byte pin)
   servoPinMap[pin] = 255;
 }
 
-void enableI2CPins()
-{
+void enableI2CPins(){
   byte i;
   // is there a faster way to do this? would probaby require importing
   // Arduino.h to get SCL and SDA pins
@@ -186,37 +192,47 @@ void readAndReportData(byte address, int theRegister, byte numBytes, byte stopTX
   // allow I2C requests that don't require a register read
   // for example, some devices using an interrupt pin to signify new data available
   // do not always require the register read so upon interrupt you call Wire.requestFrom()
-  if (theRegister != I2C_REGISTER_NOT_SPECIFIED) {
-    Wire.beginTransmission(address);
-    wireWrite((byte)theRegister);
-    Wire.endTransmission(stopTX); // default = true
-    // do not set a value of 0
-    if (i2cReadDelayTime > 0) {
-      // delay is necessary for some devices such as WiiNunchuck
-      delayMicroseconds(i2cReadDelayTime);
-    }
-  } else {
-    theRegister = 0;  // fill the register with a dummy value
-  }
-
-  Wire.requestFrom(address, numBytes);  // all bytes are returned in requestFrom
-
-  // check to be sure correct number of bytes were returned by slave
-  if (numBytes < Wire.available()) {
-    Firmata.sendString("I2C: Too many bytes received");
-  } else if (numBytes > Wire.available()) {
-    Firmata.sendString("I2C: Too few bytes received");
-  }
-
+//  if (theRegister != I2C_REGISTER_NOT_SPECIFIED) {
+//    Wire.beginTransmission(address);
+//    wireWrite((byte)theRegister);
+//    Wire.endTransmission(stopTX); // default = true
+//    // do not set a value of 0
+//    if (i2cReadDelayTime > 0) {
+//      // delay is necessary for some devices such as WiiNunchuck
+//      delayMicroseconds(i2cReadDelayTime);
+//    }
+//  } else {
+//    theRegister = 0;  // fill the register with a dummy value
+//  }
+//
+//  Wire.requestFrom(address, numBytes);  // all bytes are returned in requestFrom
+//
+//  // check to be sure correct number of bytes were returned by slave
+//  if (numBytes < Wire.available()) {
+//    Firmata.sendString("I2C: Too many bytes received");
+//  } else if (numBytes > Wire.available()) {
+//    Firmata.sendString("I2C: Too few bytes received");
+//  }
+  
   i2cRxData[0] = address;
   i2cRxData[1] = theRegister;
+  byte byteArray[10];
+  wireRead(byteArray);
+//  byteArray[5] = 123;
+//  i2cRxData[2] = 1;
 
-  for (int i = 0; i < numBytes && Wire.available(); i++) {
-    i2cRxData[2 + i] = wireRead();
+  for (int i = 2; i < 10; i++) {
+    i2cRxData[i] = byteArray[i];
+//    i2cRxData[3 + i] = byte (1337);
   }
+  
 
+//    i2cRxData[3] = byte(myScale.getReading());
+//    i2cRxData[4] = i2cRxData[3];
   // send slave address, register and received bytes
-  Firmata.sendSysex(SYSEX_I2C_REPLY, numBytes + 2, i2cRxData);
+//  Firmata.sendSysex(SYSEX_I2C_REPLY, numBytes + 2, i2cRxData);
+  Firmata.sendSysex(SYSEX_I2C_REPLY, 10, i2cRxData);
+
 }
 
 void outputPort(byte portNumber, byte portValue, byte forceSend)
@@ -493,7 +509,7 @@ void sysexCallback(byte command, byte argc, byte *argv)
         return;
       }
       else {
-        slaveAddress = argv[0];
+        slaveAddress = 0x2A;
       }
 
       // need to invert the logic here since 0 will be default for client
@@ -752,17 +768,15 @@ void systemResetCallback()
   isResetting = false;
 }
 
-#include <Wire.h>
-
-#include "SparkFun_Qwiic_Scale_NAU7802_Arduino_Library.h" // Click here to get the library: http://librarymanager/All#SparkFun_NAU8702
-
-NAU7802 myScale; //Create instance of the NAU7802 class
-
 void setup()
 {
+  tca9548a.address(TCA9548A_I2C_ADDRESS);
+
+  Wire.begin(0x2A);
   myScale.begin();
   myScale.setSampleRate(NAU7802_SPS_80);
   myScale.setGain(NAU7802_GAIN_128);
+  
   Firmata.setFirmwareVersion(FIRMATA_FIRMWARE_MAJOR_VERSION, FIRMATA_FIRMWARE_MINOR_VERSION);
 
   Firmata.attach(ANALOG_MESSAGE, analogWriteCallback);
@@ -818,6 +832,7 @@ void loop()
         }
       }
     }
+
     // report i2c data for all device with read continuous mode enabled
     if (queryIndex > -1) {
       for (byte i = 0; i < queryIndex + 1; i++) {

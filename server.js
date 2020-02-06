@@ -1,5 +1,8 @@
 const port = 3000;
-const DEV_MODE = true;
+const DEV_MODE = false;
+
+require('events').EventEmitter.defaultMaxListeners = 20;
+
 
 const express = require('express');
 const app = express();
@@ -39,7 +42,8 @@ var lift_tare = 0;
 var dynamic_pressure = 0;
 var static_pressure = 0;
 var total_pressure = 0;
-
+var old_static = 0;
+var old_total = 0;
 
 function isNumber(n) {
     // Validates that a value n is a number
@@ -148,8 +152,12 @@ let initSocket = (servo) => {
             board.i2cWriteReg(0x2A, 0x12, 0xA, function(bytes) {});
             board.i2cRead(0x2A, 0x12, 0x8, function(bytes) {
                 const buf = Buffer.from(bytes);
+                // console.log(buf);
+
+                //need to make sure that these have the exact length or it'll break
+
                 drag = buf.readUIntBE(0,3);
-                lift = buf.readUIntBE(0,6);
+                lift = buf.readUIntBE(4,3);
                 // handling overflow from negative
                 if (drag >= 0x800000){
                     drag -= 0xFFFFFF;
@@ -159,9 +167,18 @@ let initSocket = (servo) => {
                 }
                 // CALIBRATE READING HERE
                 socket.broadcast.emit('drag', drag - drag_tare);
+                socket.broadcast.emit('lift', lift - lift_tare);
                 if (recording) {
                     recorded_data['drag'].push(drag - drag_tare);
+                    recorded_data['lift'].push(lift - lift_tare);
+
+                static_pressure = Math.round((value*15.76/1024 + 1.54)*1000)/1000;
+
+                    socket.broadcast.emit('static_pressure', static_pressure);
                 }
+
+
+				// It seemed like j5 was causing issues by creating more and more listeners for the pressure sensors. We found that when we commented this section out the server worked correctly for everything else. Not within the scope of fixing today. -- Austin Engle 2020-01-04
 
                 // pressure sensor
                 var static_pressure_sensor = five.Sensor("A0");
@@ -170,8 +187,10 @@ let initSocket = (servo) => {
                     // is the voltage ratio, and the other numbers are in the given formula
                     static_pressure = Math.round((value*15.76/1024 + 1.54)*1000)/1000;
 
-                    socket.broadcast.emit('static_pressure', static_pressure);
-
+                    if(Math.abs(static_pressure - old_static) >= 0.01){
+                        socket.broadcast.emit('static_pressure', static_pressure);
+                        old_static = static_pressure;
+                    }
                     if (recording) {
                         recorded_data['static_pressure'].push(static_pressure);
                         socket.broadcast.emit('update_record', recorded_data);
@@ -181,9 +200,14 @@ let initSocket = (servo) => {
                 var total_pressure_sensor = five.Sensor("A1");
                 total_pressure_sensor.on("change", function(value) {
                     total_pressure = Math.round((value*15.76/1024 + 1.54)*1000)/1000;
-                    dynamic_pressure = total_pressure - static_pressure;
 
-                    socket.broadcast.emit('total_pressure', total_pressure);
+                    if(Math.abs(static_pressure - old_total) >= 0.01){
+                        socket.broadcast.emit('total_pressure', total_pressure);
+                        old_total = total_pressure;
+                        dynamic_pressure = total_pressure - static_pressure;
+
+                    }
+
                     if (recording) {
                         recorded_data['total_pressure'].push(total_pressure);
                         socket.broadcast.emit('update_record', recorded_data);
@@ -247,6 +271,7 @@ if (!DEV_MODE) {
     board.on("ready", function() {
         const servo = five.Servo(2);
         initSocket(servo);
+        board.samplingInterval(50);
     });
 } else {
     initSocket();
