@@ -1,14 +1,15 @@
 const port = 3000;
 const DEV_MODE = false;
 
-require('events').EventEmitter.defaultMaxListeners = 20;
 
+require('events').EventEmitter.defaultMaxListeners = 0;
 
 const express = require('express');
 const app = express();
 const server = require('http').createServer(app);
 const io = require('socket.io')(server);
 const ejs = require('ejs');
+const Ultron = require('ultron');
 var five = require("johnny-five");
 
 const STATIC_FILES = [
@@ -42,8 +43,7 @@ var lift_tare = 0;
 var dynamic_pressure = 0;
 var static_pressure = 0;
 var total_pressure = 0;
-var old_static = 0;
-var old_total = 0;
+
 
 function isNumber(n) {
     // Validates that a value n is a number
@@ -82,6 +82,8 @@ app.get('/results/', function(req, res) {
 
 let initSocket = (servo) => {
     var prompt_velocity = true;
+    var static_pressure_sensor = five.Sensor("A0");
+    var total_pressure_sensor = five.Sensor("A1");
 
     io.on('connection', function(socket) {
         // Initialize readings to zero    
@@ -108,7 +110,7 @@ let initSocket = (servo) => {
             socket.emit('prompt_velocity');
         }
         socket.on('velocity_set', function(dict) {
-            prompt_velocity = false;
+            prompt_velocity = true;
             temp = dict['temp'];
             baro_pressure = dict['pressure'];
             velocity_set();
@@ -119,6 +121,7 @@ let initSocket = (servo) => {
         setInterval(function() {
             socket.broadcast.emit('update_record', recorded_data);
         }, 500);
+
 
         if (DEV_MODE) {
             setInterval(function() {
@@ -181,45 +184,48 @@ let initSocket = (servo) => {
 				// It seemed like j5 was causing issues by creating more and more listeners for the pressure sensors. We found that when we commented this section out the server worked correctly for everything else. Not within the scope of fixing today. -- Austin Engle 2020-01-04
 
                 // pressure sensor
-                var static_pressure_sensor = five.Sensor("A0");
                 static_pressure_sensor.on("change", function(value) {
+
                     // Numbers were chosen because of the given conversion to psi from mV 1024
                     // is the voltage ratio, and the other numbers are in the given formula
                     static_pressure = Math.round((value*15.76/1024 + 1.54)*1000)/1000;
-
-                    if(Math.abs(static_pressure - old_static) >= 0.01){
-                        socket.broadcast.emit('static_pressure', static_pressure);
-                        old_static = static_pressure;
-                    }
+                    socket.broadcast.emit('static_pressure', static_pressure);
+                    
                     if (recording) {
                         recorded_data['static_pressure'].push(static_pressure);
                         socket.broadcast.emit('update_record', recorded_data);
                     }
                 });
 
-                var total_pressure_sensor = five.Sensor("A1");
                 total_pressure_sensor.on("change", function(value) {
                     total_pressure = Math.round((value*15.76/1024 + 1.54)*1000)/1000;
 
-                    if(Math.abs(static_pressure - old_total) >= 0.01){
-                        socket.broadcast.emit('total_pressure', total_pressure);
-                        old_total = total_pressure;
-                        dynamic_pressure = total_pressure - static_pressure;
-
-                    }
+                    socket.broadcast.emit('total_pressure', total_pressure);
+                    dynamic_pressure = total_pressure - static_pressure;
 
                     if (recording) {
                         recorded_data['total_pressure'].push(total_pressure);
                         socket.broadcast.emit('update_record', recorded_data);
                     }
-                });
 
+
+                    velocity = Math.floor(1096.2 * Math.sqrt((dynamic_pressure * 27.6799)/(1.325 * baro_pressure / (temp + 460))));
+                    socket.broadcast.emit('velocity', velocity);
+                    if (recording) {
+                         recorded_data['velocity'].push(velocity);
+                    }
+
+                });
             });
+
+            static_pressure_sensor.removeAllListeners(["change"]);
+            total_pressure_sensor.removeAllListeners(["change"]);
         }
 
         socket.on('toggle_record', () => {
             recording = !recording;
         });
+
 
         socket.on('drag_tare', () => {
             // Tare the drag to make it zero
@@ -227,11 +233,13 @@ let initSocket = (servo) => {
             console.log(`Taring drag ${drag_tare}`);
         });
 
+
         socket.on('lift_tare', () => {
             // Tare the lift to make it zero
             lift_tare = lift - lift_tare;
             console.log(`Taring lift to ${lift_tare}`);
         });
+
 
         socket.on('attack_angle', (value) => {
             if (!isNumber(value)) {
@@ -262,6 +270,7 @@ let initSocket = (servo) => {
             velocity_set();
             console.log(`Fan Speed set to ${value}`);
         });
+
     });
 }
 
@@ -271,7 +280,7 @@ if (!DEV_MODE) {
     board.on("ready", function() {
         const servo = five.Servo(2);
         initSocket(servo);
-        board.samplingInterval(50);
+        board.samplingInterval(500);
     });
 } else {
     initSocket();
