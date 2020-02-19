@@ -97,9 +97,9 @@ let initSocket = (servo) => {
             // Formula from:
             // github.com/brandonchupp/windtunnel/issues/2#issuecomment-518896932
             velocity = 1096.2 * Math.sqrt(
-                (dynamic_pressure * 27.6799)/
+                ((total_pressure - static_pressure) * 27.7076)/
                 (1.325 * baro_pressure / (temp + 460))
-            );
+            )/60; //Result is ft/sec
             socket.broadcast.emit('velocity', velocity);
             if (recording) {
                 recorded_data['velocity'].push(velocity);
@@ -113,7 +113,7 @@ let initSocket = (servo) => {
             prompt_velocity = true;
             temp = dict['temp'];
             baro_pressure = dict['pressure'];
-            velocity_set();
+            //velocity_set();
         });
 
 
@@ -155,7 +155,7 @@ let initSocket = (servo) => {
             board.i2cWriteReg(0x2A, 0x12, 0xA, function(bytes) {});
             board.i2cRead(0x2A, 0x12, 0x8, function(bytes) {
                 const buf = Buffer.from(bytes);
-                // console.log(buf);
+                //console.log(buf);
 
                 //need to make sure that these have the exact length or it'll break
 
@@ -175,7 +175,7 @@ let initSocket = (servo) => {
                     recorded_data['drag'].push(drag - drag_tare);
                     recorded_data['lift'].push(lift - lift_tare);
 
-                static_pressure = Math.round((value*15.76/1024 + 1.54)*1000)/1000;
+                //static_pressure = Math.round((value*15.76/1024 + 1.54)*1000)/1000;
 
                     socket.broadcast.emit('static_pressure', static_pressure);
                 }
@@ -188,33 +188,33 @@ let initSocket = (servo) => {
 
                     // Numbers were chosen because of the given conversion to psi from mV 1024
                     // is the voltage ratio, and the other numbers are in the given formula
-                    static_pressure = Math.round((value*15.76/1024 + 1.54)*1000)/1000;
+                    static_pressure = Math.round((value*2.538/1024 - 1.269 + baro_pressure/2.036)*1000)/1000; //[Pressure (psi)=(VoltageRatio*2.538)−1.269] [Pressure (kPa)=(VoltageRatio*17.5)−8.75] Formula from Phidgets website:https://www.phidgets.com/?tier=3&catid=7&pcid=5&prodid=110#Ports
+                    // Old sensor: (value*15.76/1024 + 1.54)*1000
                     socket.broadcast.emit('static_pressure', static_pressure);
+
+                    //console.log(value);
                     
                     if (recording) {
                         recorded_data['static_pressure'].push(static_pressure);
                         socket.broadcast.emit('update_record', recorded_data);
                     }
+                    velocity_set();
                 });
 
                 total_pressure_sensor.on("change", function(value) {
-                    total_pressure = Math.round((value*15.76/1024 + 1.54)*1000)/1000;
+                    total_pressure = Math.round((value*2.538/1024 - 1.269 + baro_pressure/2.036)*1000)/1000; //[Pressure (psi)=(VoltageRatio*2.538)−1.269] [Pressure (kPa)=(VoltageRatio*17.5)−8.75] Formula from Phidgets website:https://www.phidgets.com/?tier=3&catid=7&pcid=5&prodid=110#Ports
+                    // Old sensor: (value*15.76/1024 + 1.54)*1000
+
+                    //console.log(value);
 
                     socket.broadcast.emit('total_pressure', total_pressure);
-                    dynamic_pressure = total_pressure - static_pressure;
+                    //dynamic_pressure = total_pressure - static_pressure;
 
                     if (recording) {
                         recorded_data['total_pressure'].push(total_pressure);
                         socket.broadcast.emit('update_record', recorded_data);
                     }
-
-
-                    velocity = Math.floor(1096.2 * Math.sqrt((dynamic_pressure * 27.6799)/(1.325 * baro_pressure / (temp + 460))));
-                    socket.broadcast.emit('velocity', velocity);
-                    if (recording) {
-                         recorded_data['velocity'].push(velocity);
-                    }
-
+                    velocity_set();
                 });
             });
 
@@ -253,7 +253,7 @@ let initSocket = (servo) => {
             const SERVO_CENTER = 90;
             // The servo has values from 40 to 140
             if (!DEV_MODE) {
-                servo.to((attack_angle * (50/25) + SERVO_CENTER));
+                servo.to((-attack_angle * (50/25) + SERVO_CENTER));
             }
             console.log(`Attack Angle set to ${value}`);
         });
@@ -267,7 +267,7 @@ let initSocket = (servo) => {
                 value = FAN_SPEED_MIN;
             }
             fan_speed = value;
-            velocity_set();
+            //velocity_set();
             console.log(`Fan Speed set to ${value}`);
         });
 
